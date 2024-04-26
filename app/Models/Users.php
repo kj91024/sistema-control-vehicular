@@ -21,7 +21,10 @@ class Users extends Model
         'type',
         'username',
         'password',
-        'license_number'
+        'license_number',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

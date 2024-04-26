@@ -26,14 +26,18 @@ class Api extends BaseController
         }
 
         $model = model('Cars');
-        $car = $model
+        $_car = $model
                     ->where('plate', $plate)
                     ->first();
+        if(is_null($_car)){
+            $_car = new Car();
+            $_car->plate = $plate;
+            $model->save($_car);
 
-        if(is_null($car)){
-            $car = new Car();
-            $car->plate = $plate;
-            $model->save($car);
+
+            $_car = $model
+                ->where('plate', $plate)
+                ->first();
         }
 
         $car = $model
@@ -41,16 +45,20 @@ class Api extends BaseController
                     ->join('users', 'users.id = cars.id_user')
                     ->where('plate', $plate)
                     ->first();
+
+        $model = model('Records');
         if(is_null($car)){
+            $record = new Record();
+            $record->id_car = $_car->id;
+            $record->type = 'no-registered';
+            $model->insert($record);
+
             return json_encode([
                 'status' => 'error',
                 'message' => 'Carro está en el ingreso pero no está registrado en la base de datos, no puede ingresar.'
             ]);
         } else {
-            $model = model('Records');
-            $record = $model->where('id_car', $car->id)
-                            //->where('type', 'out')
-                            ->first();
+            $record = $model->where('id_car', $car->id)->first();
             if(is_null($record)) {
                 $record = new Record();
             }

@@ -39,12 +39,12 @@
 
         <div class="col-12 mb-3">
             <label for="username" class="form-label">Usuario</label>
-            <input type="text" class="form-control text-center" id="username" name="username" minlength="5" maxlength="11" required>
+            <input type="text" class="form-control text-center" id="username" name="username" minlength="5" maxlength="30" required>
             <span class="form-text text-danger"><?=validation_show_error('username')?></span>
         </div>
         <div class="col-12 mb-3">
             <label for="password" class="form-label">Contraseña</label>
-            <input type="password" class="form-control text-center" id="password" name="password" minlength="5" maxlength="20" required>
+            <input type="password" class="form-control text-center" id="password" name="password" minlength="5" maxlength="30" required>
             <span class="form-text text-danger"><?=validation_show_error('password')?></span>
         </div>
         <div class="col-12 d-grid gap-2">

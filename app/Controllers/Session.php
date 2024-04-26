@@ -49,26 +49,28 @@ class Session extends BaseController
             ],
         ],
         'username' => [
-            'rules'  => 'required|max_length[11]',
+            'rules'  => 'required|max_length[30]',
             'errors' => [
                 'required' => 'Debes ingresar tu nombre de usuario',
-                'max_length[11]' => 'El máximo de dígitos es 11',
+                'max_length[11]' => 'El máximo de dígitos es 30',
             ],
         ],
         'password' => [
-            'rules'  => 'required|max_length[20]',
+            'rules'  => 'required|max_length[30]',
             'errors' => [
                 'required' => 'Debes ingresar tu contraseña',
-                'max_length[20]' => 'El máximo de dígitos es 11',
+                'max_length[20]' => 'El máximo de dígitos es 30',
             ],
         ],
         're_password' => [
             'rules'  => 'required|max_length[20]',
             'errors' => [
                 'required' => 'Debes ingresar tu contraseña nuevamente',
-                'max_length[20]' => 'El máximo de dígitos es 11',
+                'max_length[20]' => 'El máximo de dígitos es 30',
             ],
-        ],
+        ]
+    ];
+    protected $carRules = [
         'license_number' => [
             'rules'  => 'required|max_length[11]',
             'errors' => [
@@ -130,15 +132,17 @@ class Session extends BaseController
     }
     public function register()
     {
-        if(!is_null(session()->get('user')))
-            return redirect()->to('/');
-
+        //if(!is_null(session()->get('user')))
+        //    return redirect()->to('/');
         if($this->request->getMethod() == 'GET')
             return view('register');
 
         $data = $this->request->getPost();
-        if (! $this->validateData($data, $this->registerRules)) {
-            //print_r($this->validator->getErrors());die;
+        if (!$this->validateData($data, $this->registerRules)) {
+            return redirect()->back()->withInput();
+        }
+        $type = $data['type'] ?? 'alumno';
+        if ($type != 'seguridad' && !$this->validateData($data, $this->carRules)) {
             return redirect()->back()->withInput();
         }
 
@@ -146,50 +150,63 @@ class Session extends BaseController
             return redirect()->back()->with('error', "Las contraseñas no son iguales");
         }
         $model = model('Users');
-        $user = $model
-                    ->where('username', $data['username'])
-                    ->orWhere('dni', $data['dni'])
-                    ->orWhere('license_number', $data['license_number'])
-                    ->first();
+
+        if ($type != 'seguridad') {
+            $user = $model
+                ->where('username', $data['username'])
+                ->orWhere('dni', $data['dni'])
+                ->orWhere('license_number', $data['license_number'])
+                ->first();
+        } else {
+            $user = $model
+                ->where('username', $data['username'])
+                ->first();
+        }
+
         if(!is_null($user)){
             return redirect()->back()->with('error', "Estos datos ya existen");
         }
 
         $id_user = null;
-
         # Añadimos al usuario
         $user = new User();
         $user->dni = $data['dni'];
-        $user->first_names = $data['first_names'];
-        $user->last_names = $data['last_names'];
+        $user->first_names = ucwords($data['first_names']);
+        $user->last_names = ucwords($data['last_names']);
         $user->cellphone = $data['cellphone'];
-        $user->type = 'user';
+        $user->type = $type;
         $user->username = $data['username'];
         $user->password = password_hash($data['password'], PASSWORD_DEFAULT);
-        $user->license_number = $data['license_number'];
+        $user->license_number = $data['license_number'] ?? 0;
         if($user->hasChanged()){
-            $id_user = $model->save($user);
+            $model->save($user);
+            $id_user = $model->insertID;
         }
-
         if(is_null($id_user)){
             return redirect()->back()->with('error', "No se pudo crear el usuario");
         }
-
-        # Añadimos al carro
-        $model = model('Cars');
-        $car = $model
-                    ->where('plate', $data['plate'])
-                    ->first();
-        if( is_null($car) or is_null($car->id_user) ) {
-            $car = new Car();
-            $car->id_user = $id_user;
-            $car->plate = $data['plate'];
-            $car->color = $data['color'];
-            if ($car->hasChanged()) {
-                $model->save($car);
+        if($type != 'seguridad') {
+            # Añadimos al carro
+            $model = model('Cars');
+            $car = $model
+                ->where('plate', $data['plate'])
+                ->first();
+            if (is_null($car) or is_null($car->id_user)) {
+                $car = new Car();
+                $car->id_user = $id_user;
+                $car->plate = $data['plate'];
+                $car->color = $data['color'];
+                if ($car->hasChanged()) {
+                    $model->save($car);
+                }
             }
         }
-        return redirect()->to('/login')->with('success', "Usuario registrado, puedes iniciar sesión");
+
+        if($type == 'user') {
+            return redirect()->to('/login')->with('success', "Usuario registrado, puedes iniciar sesión");
+        } else {
+            return redirect()->to('/user/list');
+        }
     }
     public function logout()
     {

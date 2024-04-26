@@ -16,6 +16,9 @@ class Records extends Model
     protected $allowedFields    = [
         'id_car',
         'type',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

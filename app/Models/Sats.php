@@ -2,22 +2,20 @@
 
 namespace App\Models;
 
-use App\Entities\Car;
+use App\Entities\Sat;
 use CodeIgniter\Model;
 
-class Cars extends Model
+class Sats extends Model
 {
-    protected $table            = 'cars';
+    protected $table            = 'sat';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
-    protected $returnType       = Car::class;
-    protected $useSoftDeletes   = true;
+    protected $returnType       = Sat::class;
+    protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'id',
-        'id_user',
+        'id_sat',
         'plate',
-        'color',
         'created_at',
         'updated_at',
         'deleted_at'
@@ -30,7 +28,7 @@ class Cars extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = true;
+    protected $useTimestamps = false;
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
