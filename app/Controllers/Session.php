@@ -2,14 +2,13 @@
 
 namespace App\Controllers;
 
-use App\Controllers\BaseController;
-use App\Entities\Car;
-use App\Entities\User;
-use CodeIgniter\HTTP\ResponseInterface;
+use App\Services\UserService;
+use CodeIgniter\HTTP\RedirectResponse;
+use App\Services\SessionService;
 
 class Session extends BaseController
 {
-    protected $loginRules = [
+    protected array $loginRules = [
         'username' => [
             'rules'  => 'required|max_length[20]',
             'errors' => [
@@ -25,7 +24,7 @@ class Session extends BaseController
             ],
         ]
     ];
-    protected $registerRules = [
+    protected array $registerRules = [
         'dni' => [
             'rules'  => 'required|integer|max_length[8]',
             'errors' => [
@@ -70,7 +69,7 @@ class Session extends BaseController
             ],
         ]
     ];
-    protected $carRules = [
+    protected array $carRules = [
         'license_number' => [
             'rules'  => 'required|max_length[11]',
             'errors' => [
@@ -93,124 +92,81 @@ class Session extends BaseController
             ],
         ]
     ];
-    public function login()
-    {
+    protected SessionService $sessionService;
+    protected UserService $userService;
+    public function __construct(){
+        $this->sessionService = new SessionService();
+        $this->userService = new UserService();
+    }
+    private function validateLogin(array $data){
         if(!is_null(session()->get('user')))
             return redirect()->to('/');
 
         if($this->request->getMethod() == 'GET')
             return view('login');
 
-        $data = $this->request->getPost();
         if (! $this->validateData($data, $this->loginRules)) {
             return redirect()->back()->withInput();
         }
-
-        $user = model('Users')
-            ->where('username', $data['username'])
-            ->first();
-        if( is_null($user) ){
-            return redirect()->back()->with('error', 'No existe este usuario');
-        }
-        if( !password_verify($data['password'], $user->password) ){
-            return redirect()->back()->with('error', 'Contraseña incorrecta');
-        }
-
-        $user = [
-            'id' => $user->id,
-            'dni' => $user->dni,
-            'first_names' => $user->first_names,
-            'last_names' => $user->last_names,
-            'cellphone' => $user->cellphone,
-            'type' => $user->type,
-            'username' => $user->username,
-            'license_number' => $user->license_number,
-        ];
-
-        session()->set('user', $user);
-        return redirect()->to('/');
+        return true;
     }
-    public function register()
-    {
-        //if(!is_null(session()->get('user')))
-        //    return redirect()->to('/');
+    private function validateRegister(array $data){
+        if(!is_null(session()->get('user')))
+            return redirect()->to('/');
         if($this->request->getMethod() == 'GET')
             return view('register');
 
-        $data = $this->request->getPost();
+
         if (!$this->validateData($data, $this->registerRules)) {
             return redirect()->back()->withInput();
         }
-        $type = $data['type'] ?? 'alumno';
-        if ($type != 'seguridad' && !$this->validateData($data, $this->carRules)) {
+        if ($data['type'] != 'seguridad' && !$this->validateData($data, $this->carRules)) {
             return redirect()->back()->withInput();
         }
-
         if($data['password'] != $data['re_password']){
             return redirect()->back()->with('error', "Las contraseñas no son iguales");
         }
-        $model = model('Users');
 
-        if ($type != 'seguridad') {
-            $user = $model
-                ->where('username', $data['username'])
-                ->orWhere('dni', $data['dni'])
-                ->orWhere('license_number', $data['license_number'])
-                ->first();
-        } else {
-            $user = $model
-                ->where('username', $data['username'])
-                ->first();
+        return true;
+    }
+    public function login() : string|RedirectResponse
+    {
+        $data = $this->request->getPost();
+        $validated = $this->validateLogin($data);
+        if($validated !== true){
+            return $validated;
         }
 
-        if(!is_null($user)){
-            return redirect()->back()->with('error', "Estos datos ya existen");
-        }
+        $login = (new SessionService())
+                    ->loginUser($data['username'], $data['password']);
 
-        $id_user = null;
+        return $login === true
+                ? redirect()->to('/')
+                : $login;
+    }
+    public function register(): string|RedirectResponse
+    {
+        $data = $this->request->getPost();
+        $data['type'] = $data['type'] ?? 'alumno';
+        $validated = $this->validateRegister($data);
+        if($validated !== true){
+            return $validated;
+        }
         # Añadimos al usuario
-        $user = new User();
-        $user->dni = $data['dni'];
-        $user->first_names = ucwords($data['first_names']);
-        $user->last_names = ucwords($data['last_names']);
-        $user->cellphone = $data['cellphone'];
-        $user->type = $type;
-        $user->username = $data['username'];
-        $user->password = password_hash($data['password'], PASSWORD_DEFAULT);
-        $user->license_number = $data['license_number'] ?? 0;
-        if($user->hasChanged()){
-            $model->save($user);
-            $id_user = $model->insertID;
-        }
-        if(is_null($id_user)){
-            return redirect()->back()->with('error', "No se pudo crear el usuario");
-        }
-        if($type != 'seguridad') {
-            # Añadimos al carro
-            $model = model('Cars');
-            $car = $model
-                ->where('plate', $data['plate'])
-                ->first();
-            if (is_null($car) or is_null($car->id_user)) {
-                $car = new Car();
-                $car->id_user = $id_user;
-                $car->plate = $data['plate'];
-                $car->color = $data['color'];
-                if ($car->hasChanged()) {
-                    $model->save($car);
-                }
-            }
+        $response = $this->userService->createUser($data);
+        if($response instanceof RedirectResponse){
+            return $response;
         }
 
-        if($type == 'user') {
+        if($data['type'] == 'alumno') {
             return redirect()->to('/login')->with('success', "Usuario registrado, puedes iniciar sesión");
         } else {
             return redirect()->to('/user/list');
         }
     }
-    public function logout()
+    public function logout(): RedirectResponse
     {
-        session()->remove('user');
+        $this->sessionService->deleteSession();
         return redirect()->to('/');
     }
 }

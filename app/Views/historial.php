@@ -30,7 +30,7 @@
         </tbody>
     </table>
     <?php if(count($historial) == 0): ?>
-    <p class="alert alert-light text-center">Aún no hay un histórico relacionado con el número de placa regsitrado.</p>
+    <p class="alert alert-light text-center">Aún no hay un histórico relacionado con el número de placa registrado.</p>
     <?php else: ?>
     <table class="table">
         <thead>

@@ -15,6 +15,7 @@ class Records extends Model
     protected $protectFields    = true;
     protected $allowedFields    = [
         'id_car',
+        'id_place',
         'type',
         'created_at',
         'updated_at',
