@@ -19,14 +19,14 @@ class Dashboard extends BaseController
     protected PlaceService $placeService;
     protected array $userSession;
     protected array $placeRules = [
-        'name' => [
+        'place_name' => [
             'rules'  => 'required|max_length[200]',
             'errors' => [
                 'required' => 'Debe ingresar el nombre del parking para identificarlo',
                 'max_length[200]' => 'Debe tener menos de 200 caracteres',
             ],
         ],
-        'address' => [
+        'place_address' => [
             'rules'  => 'required',
             'errors' => [
                 'required' => 'Debe ingresar la dirección',
@@ -97,17 +97,31 @@ class Dashboard extends BaseController
             return redirect()->to('/login');
         }
 
-        if($this->userSession['type'] != 'seguridad') {
-            return $this->getUserHistory($this->userSession['id']);
+        $places = $this->placeService->getPlacesAvailable();
+        if($this->userSession['type'] == 'seguridad') {
+            $car_entering = $this->recordService->getCarsEntering();
+            $in_parking = $this->recordService->getCarsInParking();
+            $car_leaving = $this->recordService->getCarsLeaving();
+            $data = compact('places', 'car_entering', 'in_parking', 'car_leaving');
+            return view('centro-control', $data);
+        } else {
+
+            $record = $is_save = $code = $places_available = null;
+            $out = false;
+
+            $car = $this->carService->findByIdUser($this->userSession['id']);
+            $last_history = $this->recordService->getLastHistory($car->id);
+            if(!empty($last_history)){
+                $record = $this->recordService->getRecordById($last_history['id_record']);
+                $is_save = !(empty($record->floor) || empty($record->letter) || empty($record->number));
+                $code = $record->floor.'|'.$record->letter.'|'.$record->number;
+                $places_available = $this->placeService->getFloorLevelAvailable($last_history['id_place']);
+                $out = empty($last_history['rc']);
+            }
+
+            $data = compact('code', 'places', 'car', 'record', 'last_history', 'places_available', 'out', 'is_save');
+            return view('dashboard', $data);
         }
-
-        $car_entering = $this->recordService->getCarsEntering();
-        $in_parking = $this->recordService->getCarsInParking();
-        $car_leaving = $this->recordService->getCarsLeaving();
-
-        $data = compact('car_entering', 'in_parking', 'car_leaving');
-
-        return view('centro-control', $data);
     }
     public function getUserHistory(int $id_user): string
     {
@@ -120,7 +134,6 @@ class Dashboard extends BaseController
         $data = [];
         switch($type){
             case 'add':
-                // Añadimos Place
                 $data['place'] = new Place;
                 if($this->request->getMethod() == 'POST'){
                     $data = $this->request->getPost();
@@ -130,6 +143,15 @@ class Dashboard extends BaseController
                     if(!is_null($id_place)){
                         $data['id'] = $id_place;
                     }
+
+                    $floor = $data['floor'];
+                    foreach($floor as &$item){
+                        $item['levels'] = empty($item['levels']) ? 0 : $item['levels'];
+                        $item['places_quantity'] = empty($item['places_quantity']) ? 0 : $item['places_quantity'];
+                        $item['place_letter'] = empty($item['place_letter']) ? [] : $item['place_letter'];
+                    }
+                    $data['floor'] = $floor;
+
                     $this->placeService->createPlace($data);
                     return redirect()->to(base_url('parking/list'));
                 }
@@ -142,8 +164,31 @@ class Dashboard extends BaseController
                 $place = $this->placeService->getPlaceById($id_place);
                 $data['place'] = is_null($place) ? new Place : $place;
                 break;
+            case 'delete':
+                $this->placeService->deletePlace($id_place);
+                return redirect()->to(base_url('parking/list'));
+            case 'view':
+                $place_available = $this->placeService->getFloorLevelAvailableFull($id_place);
+                $data['place_available'] = $place_available;
         }
 
         return view("place-{$type}", $data);
+    }
+    public function updatePlace(string $id_record){
+        $rule = [
+            'place' => [
+                'rules'  => 'required',
+                'errors' => [
+                    'required' => 'Debe seleccionar el lugar donde se ha estacionado'
+                ]
+            ]
+        ];
+        $data = $this->request->getPost();
+        if (!$this->validateData($data, $rule)) {
+            return redirect()->back()->withInput();
+        }
+
+        $this->recordService->updatePlace($id_record, $data['place']);
+        return redirect()->back();
     }
 }

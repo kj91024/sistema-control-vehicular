@@ -14,7 +14,7 @@ class Places extends Model
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'id', 'name', 'address', 'spaces', 'created_at', 'updated_at', 'deleted_at'
+        'id', 'place_name', 'place_address', 'spaces', 'floor', 'created_at', 'updated_at', 'deleted_at'
     ];
 
     protected bool $allowEmptyInserts = false;

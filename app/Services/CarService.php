@@ -30,10 +30,10 @@ class CarService{
         return $this->create($data, $id_user);
     }
     public function saveDefaultCar($plate): int{
-        $car = $this->carService->findByPlate($plate);
+        $car = $this->findByPlate($plate);
         if(is_null($car)){
             $data = compact('plate');
-            $id_car = $this->carService->create($data);
+            $id_car = $this->create($data);
         }
         return is_null($car) ? $id_car : $car->id;
     }

@@ -8,6 +8,7 @@
         <tr>
             <th class="text-center">ID</th>
             <th class="text-center">Placa vehicular</th>
+            <th class="text-center">Estacionamiento</th>
             <th class="text-center">Primera vez detectado</th>
             <th class="text-center">Última vez detectado</th>
             <th class="text-center">Cantidad de veces</th>
@@ -19,8 +20,9 @@
             <tr>
                 <td class="text-center align-middle"><b><?=$item->id?></b></td>
                 <td class="text-center align-middle"><b><?=$item->plate?></b></td>
-                <td class="text-center align-middle"><?=$item->created_at?></td>
-                <td class="text-center align-middle"><?=$item->updated_at?></td>
+                <td class="text-center align-middle"><b><?=$item->place_name?></b></td>
+                <td class="text-center align-middle"><?=cute_date($item->created_at)?></td>
+                <td class="text-center align-middle"><?=cute_date($item->updated_at)?></td>
                 <td class="text-center align-middle"><?=$item->count?></td>
                 <td class="text-center align-middle">
                     <?php if($item->rq): ?>

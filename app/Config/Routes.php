@@ -17,8 +17,12 @@ $routes->get('/user/delete/(:num)', [[Dashboard::class, 'getUsers'], 'delete/$1'
 $routes->get('/parking/list', [[Dashboard::class, 'getParking'], 'list']);
 $routes->get('/parking/add', [[Dashboard::class, 'getParking'], 'add']);
 $routes->get('/parking/edit/(:num)', [[Dashboard::class, 'getParking'], 'edit/$1']);
+$routes->get('/parking/view/(:num)', [[Dashboard::class, 'getParking'], 'view/$1']);
+$routes->get('/parking/delete/(:num)', [[Dashboard::class, 'getParking'], 'delete/$1']);
 $routes->post('/parking/add', [[Dashboard::class, 'getParking'], 'add']);
 $routes->post('/parking/edit/(:num)', [[Dashboard::class, 'getParking'], 'add/$1']);
+
+$routes->post('/record/update/place/(:num)', [[Dashboard::class, 'updatePlace'], '$1']);
 
 $routes->get('/no-registered',      [Dashboard::class, 'getPlatesNoRegistered']);
 
@@ -30,5 +34,5 @@ $routes->post('/login',         [Session::class, 'login']);
 $routes->post('/logout',        [Session::class, 'logout']);
 $routes->post('/register',      [Session::class, 'register']);
 
-$routes->get('/ingreso/(:any)', [Api::class, 'in']);
-$routes->get('/salida/(:any)',  [Api::class, 'out']);
+$routes->get('/ingreso/(:num)/(:any)', [Api::class, 'in']);
+$routes->get('/salida/(:num)/(:any)',  [Api::class, 'out']);

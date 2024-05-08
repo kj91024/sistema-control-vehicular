@@ -9,10 +9,14 @@ use App\Models\Records;
 class RecordService{
     protected Records $recordModel;
     protected CarService $carService;
+    protected SatService $satService;
+    protected PlaceService $placeService;
     public function __construct()
     {
         $this->recordModel = model("Records");
         $this->carService = new CarService();
+        $this->satService = new SatService();
+        $this->placeService = new PlaceService();
     }
     private function timeElapsedString($datetime, $full = false, $now = new \DateTime) {
         //$now = new \DateTime;
@@ -45,7 +49,7 @@ class RecordService{
     private function cleanList($list): array
     {
         $list = array_map(function($data){
-            $date = $data->updated_at->toDateTimeString();
+            $date = $data->created_at->toDateTimeString();
             $init = strtotime($date);
             $finish = strtotime($date.' +2 minutes');
             if ( (time() >= $init) && (time() <= $finish) )
@@ -58,7 +62,7 @@ class RecordService{
     private function filterList($list): array
     {
         $list = array_map(function($data){
-            $date = $data->updated_at->toDateTimeString();
+            $date = $data->created_at->toDateTimeString();
             $init = strtotime($date);
             $finish = strtotime($date.' +24 hours');
             $data->toomuch = !((time() >= $init) && (time() <= $finish));
@@ -78,12 +82,14 @@ class RecordService{
             ->select([
                 'cars.id', 'cars.plate', 'cars.color',
                 'users.dni', 'users.first_names', 'users.last_names', 'users.cellphone',
-                'records.created_at', 'records.updated_at'
+                'records.created_at', 'records.updated_at', 'records.floor', 'records.letter', 'records.number',
+                'places.place_name', 'places.place_address'
             ])
             ->join('cars', 'cars.id = records.id_car')
             ->join('users', 'users.id = cars.id_user')
+            ->join('places', 'places.id = records.id_place')
             ->where('records.type', 'in')
-            ->orderBy('records.updated_at','DESC')
+            ->orderBy('records.created_at','DESC')
             ->findAll();
         return $this->cleanList($car_entering);
     }
@@ -92,13 +98,15 @@ class RecordService{
         $in_parking = $this->recordModel
             ->select([
                 'cars.id', 'cars.plate', 'cars.color',
-                'users.id as id_user', 'users.dni', 'users.first_names', 'users.last_names', 'users.cellphone',
-                'records.created_at', 'records.updated_at'
+                'users.id as id_user', 'users.dni', 'users.first_names', 'users.last_names', 'users.cellphone', 'users.license_number',
+                'records.created_at', 'records.updated_at', 'records.floor', 'records.letter', 'records.number',
+                'places.place_name', 'places.place_address'
             ])
             ->join('cars', 'cars.id = records.id_car')
             ->join('users', 'users.id = cars.id_user')
+            ->join('places', 'places.id = records.id_place')
             ->where('records.type', 'in')
-            ->orderBy('records.updated_at','DESC')
+            ->orderBy('records.created_at','DESC')
             ->findAll();
         return $this->filterList($in_parking);
     }
@@ -108,27 +116,33 @@ class RecordService{
             ->select([
                 'cars.id', 'cars.plate', 'cars.color',
                 'users.dni', 'users.first_names', 'users.last_names', 'users.cellphone',
-                'records.created_at', 'records.updated_at'
+                'records.created_at', 'records.updated_at', 'records.floor', 'records.letter', 'records.number',
+                'places.place_name', 'places.place_address'
             ])
             ->join('cars', 'cars.id = records.id_car')
             ->join('users', 'users.id = cars.id_user')
+            ->join('places', 'places.id = records.id_place')
             ->where('records.type', 'out')
-            ->orderBy('records.updated_at','DESC')
+            ->orderBy('records.created_at','DESC')
             ->findAll();
         return $this->cleanList($car_leaving);
     }
     public function getHistory(int $id_car): array
     {
         $records = $this->recordModel
+                    ->select([
+                        'records.*',
+                        'places.place_name', 'places.place_address', 'places.id as id_place'
+                    ])
+                    ->join('places', 'places.id = records.id_place')
                     ->where('id_car', $id_car)
                     ->orderBy('id', 'DESC')
                     ->findAll();
-
         $history = [];
-        $i = 0;
         if(count($records) > 0) {
-            for ($i = 0; $i - 1 < count($records); $i += 2) {
-                $ra = $records[$i]->created_at->toDateTimeString();
+            for ($i = 0; $i + 1 <= count($records); $i += 2) {
+                $record = $records[$i];
+                $ra = $record->created_at->toDateTimeString();
                 $rc = [];
                 if (isset($records[$i + 1])) {
                     $rc = $records[$i + 1]->created_at->toDateTimeString();
@@ -139,22 +153,38 @@ class RecordService{
                     $rb = $this->timeElapsedString(date('Y-m-d H:i:s'), false, new \DateTime($ra));
                     $rb = 'Está en el estacionamiento ' . strtolower($rb);
                 }
-                $history[] = compact('ra', 'rb', 'rc');
+
+                $place_name = $record->place_name;
+                $place_address = $record->place_address;
+                $id_record = $record->id;
+                $id_place = $record->id_place;
+                $floor = $record->floor;
+                $letter = $record->letter;
+                $number = $record->number;
+                $history[] = compact('ra', 'rb', 'rc', 'id_record', 'id_place', 'place_name', 'place_address', 'floor', 'letter', 'number');
             }
         }
-
         return $history;
+    }
+    public function getLastHistory(int $id_car): array{
+        $list = $this->getHistory($id_car);
+        if(empty($list)){
+            return [];
+        }
+        return end($list);
     }
     private function getPlatesNoRegisteredWithRQ(): array
     {
         $con_rq = $this->recordModel->select([
             'records.*',
             'cars.plate',
+            'places.place_name', 'places.place_address',
             'COUNT(records.id_car) as count',
             'MAX(records.updated_at) as updated_at'
         ])
             ->join('cars', 'records.id_car = cars.id')
             ->join('sat', 'sat.plate = cars.plate')
+            ->join('places', 'places.id = records.id_place')
             ->where('id_user', NULL)
             ->where('type', 'no-registered')
             ->groupBy('records.id_car')
@@ -170,9 +200,12 @@ class RecordService{
         $sin_rq = $this->recordModel->select([
             'records.*',
             'cars.plate',
+            'places.place_name', 'places.place_address',
             'COUNT(records.id_car) as count',
             'MAX(records.updated_at) as updated_at'
-        ])->join('cars', 'records.id_car = cars.id');
+        ])
+            ->join('cars', 'records.id_car = cars.id')
+            ->join('places', 'places.id = records.id_place');
         if(!empty($ids)){
             $sin_rq = $sin_rq->whereNotIn('records.id_car', $ids);
         }
@@ -198,50 +231,66 @@ class RecordService{
         return array_merge($sin_rq, $con_rq);
     }
 
-    public function registerCarEntry(string $plate): string
+    public function registerCarEntry(int $id_place, string $plate): string
     {
         $id_car = $this->carService->saveDefaultCar($plate);
         $car = $this->carService->getCarWithUser($plate);
 
         if(is_null($car)){
-            $this->insert($id_car, 'no-registered');
+            $this->insert($id_car, $id_place, 'no-registered');
+            if($this->satService->existPlate($plate)){
+                return json_encode([
+                    'status' => 'danger',
+                    'message' => 'Cuidado el carro está con RQ, ya se le ha avisado a la policía'
+                ]);
+            }
+
             return json_encode([
                 'status' => 'error',
-                'message' => 'Carro está en el ingreso pero no está registrado en la base de datos, no puede ingresar.'
-            ]);
-        } else {
-            // Si existe la placa se guarda como ingresando
-            $this->save($car->id, 'in');
-            return json_encode([
-                'status' => 'success',
-                'message' => 'Carro está en el ingreso, puede ingresar'
+                'message' => 'Un carro está en el ingreso pero no está registrado en la base de datos, no puede ingresar.'
             ]);
         }
+
+        // Si existe la placa se guarda como ingresando
+        $this->save($car->id, $id_place, 'in');
+        return json_encode([
+            'status' => 'success',
+            'message' => 'Un carro está en el ingreso, puede ingresar'
+        ]);
     }
-    public function registerCarExit(string $plate){
+    public function registerCarExit(int $id_place, string $plate){
         $this->carService->saveDefaultCar($plate);
         $car = $this->carService->getCarWithUser($plate);
         if(is_null($car)){
             return json_encode([
                 'status' => 'error',
-                'message' => 'Carro está en la salida pero no está registrado en la base de datos, no puede salir.'
-            ]);
-        } else {
-            // Si existe la placa se guarda como saliendo
-            $this->save($car->id, 'out');
-            return json_encode([
-                'status' => 'success',
-                'message' => 'Carro está en la salida, puede salir'
+                'message' => 'Un carro está en la salida pero no está registrado en la base, no puede salir.'
             ]);
         }
+
+        $hasPlaceDefined = $this->placeService->hasPlaceDefined($car->id);
+        if(!$hasPlaceDefined){
+            return json_encode([
+                'status' => 'error',
+                'message' => 'Un carro está en la salida pero no ha configurado la ubicación en la que estaba parqueado, no puede salir.'
+            ]);
+        }
+
+        // Si existe la placa se guarda como saliendo
+        $this->save($car->id, $id_place, 'out');
+        return json_encode([
+            'status' => 'success',
+            'message' => 'Un carro está en la salida, puede salir'
+        ]);
     }
-    private function insert(int $id_car, string $type){
+    private function insert(int $id_car, int $id_place, string $type){
         $record = new Record();
         $record->id_car = $id_car;
+        $record->id_place = $id_place;
         $record->type = $type;
         $this->recordModel->insert($record);
     }
-    private function save(int $id_car, string $type){
+    private function save(int $id_car, int $id_place, string $type){
         $record = $this->recordModel
                         ->where('id_car', $id_car)
                         ->first();
@@ -249,9 +298,25 @@ class RecordService{
             $record = new Record();
         }
         $record->id_car = $id_car;
+        $record->id_place = $id_place;
         $record->type = $type;
         if($record->hasChanged()) {
             $this->recordModel->save($record);
         }
+    }
+    public function getRecordById(int $id_record){
+        return $this->recordModel->find($id_record);
+    }
+    public function updatePlace(int $id_record, string $place){
+        $place = explode('|', $place);
+        $record = $this->getRecordById($id_record);
+        $record->floor  = $place[0];
+        $record->letter = $place[1];
+        $record->number = $place[2];
+        if($record->hasChanged()){
+            $this->recordModel->save($record);
+            return true;
+        }
+        return false;
     }
 }

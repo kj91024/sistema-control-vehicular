@@ -25,7 +25,7 @@
                 <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>"><?=$item->type != 'seguridad' ? $item->license_number : '~'?></td>
                 <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>"><?=$item->type != 'seguridad' ? "<input type=\"color\" value=\"{$item->color}\" style=\"width: 60px;height: 30px;\" disabled>" : '~'?></td>
                 <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>"><b><?=strtoupper($item->type)?></b></td>
-                <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>"><?=$item->created_at?></td>
+                <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>"><?=cute_date($item->created_at)?></td>
                 <td class="text-center align-middle <?=$item->type == 'seguridad' ? 'bg-light' : ''?>">
                     <?php
                     $session = session()->get("user");
