@@ -272,7 +272,7 @@ class RecordService{
         if(!$hasPlaceDefined){
             return json_encode([
                 'status' => 'error',
-                'message' => 'Un carro está en la salida pero no ha configurado la ubicación en la que estaba parqueado, no puede salir.'
+                'message' => 'Un carro está en la salida pero no ha seleccionado la ubicación en la que estaba parqueado, no puede salir.'
             ]);
         }
 
