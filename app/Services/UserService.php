@@ -6,8 +6,10 @@ use CodeIgniter\HTTP\RedirectResponse;
 
 class UserService{
     protected Users $userModel;
+    protected CarService $carService;
     public function __construct(){
         $this->userModel = model('Users');
+        $this->carService  = new CarService();
     }
     public function findByParams(array $params): ?User{
         extract($params);
@@ -37,7 +39,7 @@ class UserService{
         }
         return is_null($user);
     }
-    public function createUser(array $data): bool|RedirectResponse{
+    public function createUser(array $data){
         // Consultamos la existencia del usuario
         if(!$this->existUser($data)){
             return redirect()->back()->with('error', "Estos datos ya existen");
@@ -69,6 +71,27 @@ class UserService{
             $carService->createCar($id_user, $data);
         }
         return $id_user;
+    }
+    function updateUser(array $data, $id_user){
+        $user = $this->userModel->find($id_user);
+        $user->type = $data['type'];
+        $user->first_names = $data['first_names'];
+        $user->last_names = $data['last_names'];
+        $user->dni = $data['dni'];
+        $user->cellphone = $data['cellphone'];
+        $user->username = $data['username'];
+        $user->password = password_hash($data['password'], PASSWORD_DEFAULT);
+        $user->license_number = $data['license_number'];
+        
+        if($user->hasChanged()){
+            $this->userModel->save($user);
+        }
+
+        if($data['type'] != 'seguridad') {
+            $this->carService->updateCar($data, $id_user);
+        }
+
+        return true;
     }
     public function getUserList(){
         $a = model('Users')

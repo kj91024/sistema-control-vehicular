@@ -17,6 +17,7 @@ class Records extends Model
         'id_car',
         'id_place',
         'type',
+        'do',
         'floor',
         'letter',
         'number',

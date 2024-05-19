@@ -39,18 +39,6 @@ class PlaceService{
     public function getPlaceList(): array{
         return $this->placeModel->findAll();
     }
-    public function getFreeSpace(){
-
-    }
-    public function getTotalSpace(){
-
-    }
-    public function getSpace(){
-        $spaces = [];
-        $psaces['free'] = $this->getFreeSpace();
-        $psaces['total'] = $this->getTotalSpace();
-        return $spaces;
-    }
     public function deletePlace($id_place){
         $this->placeModel->delete($id_place);
         return true;
@@ -62,6 +50,7 @@ class PlaceService{
                     FROM records
                     WHERE type IN ('in', 'out')
                         AND id_car = {$id_car}
+                        AND do = 1
                     ORDER BY id DESC
                 ) AS R
                 GROUP BY id_car
@@ -115,6 +104,7 @@ class PlaceService{
                         FROM records
                         WHERE type IN ('in', 'out')
                             AND id_place = {$id_place}
+                            AND do = 1
                         ORDER BY id DESC) AS R
                     GROUP BY id_car
                     HAVING R.type = 'in'
@@ -161,6 +151,7 @@ class PlaceService{
                             SELECT *, ROW_NUMBER() OVER (ORDER BY id DESC) AS new_id
                             FROM records
                             WHERE type IN ('in', 'out')
+                                AND do = 1
                             ORDER BY id DESC
                         ) AS R 
                    GROUP BY id_car
@@ -182,5 +173,14 @@ class PlaceService{
         }
         $available = array_merge($parkingOccuped, $parkingWithoutOccuped);
         return $available;
+    }
+    public function getPlaceAvailable(int $id_place){
+        $places = $this->getPlacesAvailable();
+        foreach($places as $place)
+            if($place->id == $id_place) break;
+
+        if($place->id != $id_place)
+            return [];
+        return $place;
     }
 }

@@ -1,3 +1,9 @@
+# Ejecutar de la siguiente manera.
+    php spark serve
+    lt --port 8080 -s estacionamiento
+    # La contraseña para el tunel la puedes ver con este código:
+    curl https://api.ipify.org/?format=text
+
 # Api
 El sistema responde a las siguientes API
 

@@ -8,7 +8,9 @@ class CarService{
     public function __construct(){
         $this->carModel = model("Cars");
     }
-
+    public function getById($id){
+        return $this->carModel->find($id);
+    }
     public function findByPlate(string $plate): ?Car{
         $car = $this->carModel
                 ->where('plate', $plate)
@@ -27,7 +29,7 @@ class CarService{
         if (!is_null($car) and !is_null($car->id_user))
             return false;
 
-        return $this->create($data, $id_user);
+        return $this->crceate($data, $id_user);
     }
     public function saveDefaultCar($plate): int{
         $car = $this->findByPlate($plate);
@@ -61,5 +63,14 @@ class CarService{
             ->where('plate', $plate)
             ->first();
         return $result;
+    }
+    function updateCar(array $data, int $id_user){
+        $car = $this->carModel->where('id_user', $id_user)->first();
+        $car->plate = $data['plate'];
+        $car->color = $data['color'];
+        if($car->hasChanged()){
+            $this->carModel->save($car);
+        }
+        return true;
     }
 }
